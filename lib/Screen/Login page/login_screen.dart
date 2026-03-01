@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     // 1. Basic Validation
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please enter both email and password")),
+        const SnackBar(content: Text("Please enter both email and passwor")),
       );
       return;
     }
