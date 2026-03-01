@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class OwnerDormitories extends StatefulWidget {
   const OwnerDormitories({Key? key}) : super(key: key);
@@ -86,11 +88,27 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
     final totalSlotsController = TextEditingController();
     final availableSlotsController = TextEditingController();
     final locationController = TextEditingController();
-    final roomTypeController = TextEditingController(text: 'Standard');
+    final roomTypeController = TextEditingController();
     final overviewController = TextEditingController();
     final contactController = TextEditingController();
-    final imageUrlController = TextEditingController();
     bool _isSubmitting = false;
+    String? _selectedImageBase64;
+    XFile? _selectedImage;
+    final ImagePicker _picker = ImagePicker();
+
+    Future<void> _pickImage() async {
+      try {
+        final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          final base64Image = base64Encode(bytes);
+          _selectedImage = image;
+          _selectedImageBase64 = base64Image;
+        }
+      } catch (e) {
+        print('Error picking image: $e');
+      }
+    }
 
     showDialog(
       context: context,
@@ -103,6 +121,39 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Image Picker
+                  GestureDetector(
+                    onTap: () async {
+                      await _pickImage();
+                      setDialogState(() {});
+                    },
+                    child: Container(
+                      height: 150,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300, width: 2),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.grey.shade100,
+                      ),
+                      child: _selectedImage != null
+                          ? Image.file(
+                              File(_selectedImage!.path),
+                              fit: BoxFit.cover,
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.camera_alt, size: 40, color: Color(0xFF00BCD4)),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Tap to add dormitory picture',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Room Name'),
@@ -139,22 +190,21 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
                   TextFormField(
                     controller: roomTypeController,
                     decoration: const InputDecoration(labelText: 'Room Type'),
+                    validator: (value) => value?.isEmpty ?? true ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: overviewController,
-                    decoration: const InputDecoration(labelText: 'Overview'),
-                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Overview',
+                      border: UnderlineInputBorder(),
+                    ),
+                    maxLines: 1,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: contactController,
                     decoration: const InputDecoration(labelText: 'Contact'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: imageUrlController,
-                    decoration: const InputDecoration(labelText: 'Image URL'),
                   ),
                 ],
               ),
@@ -170,6 +220,13 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
                   ? null
                   : () async {
                       if (formKey.currentState!.validate()) {
+                        if (_selectedImageBase64 == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select an image')),
+                          );
+                          return;
+                        }
+
                         setDialogState(() {
                           _isSubmitting = true;
                         });
@@ -184,7 +241,7 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
                             'room_type': roomTypeController.text,
                             'overview': overviewController.text,
                             'contact': contactController.text,
-                            'image_url': imageUrlController.text,
+                            'image_data': _selectedImageBase64,
                           };
 
                           await _addDormToDatabase(dormData);
@@ -305,15 +362,28 @@ class _OwnerDormitoriesState extends State<OwnerDormitories> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Room Icon / Image Placeholder
+          // Room Image or Placeholder
           Container(
-            height: 60,
-            width: 60,
+            height: 80,
+            width: 80,
             decoration: BoxDecoration(
               color: const Color(0xFFF4F6F8),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.bed, color: Color(0xFF7F8C8D), size: 30),
+            child: dorm['image_url'] != null && dorm['image_url'].toString().isNotEmpty
+                ? dorm['image_url'].toString().startsWith('data:image')
+                    ? Image.memory(
+                        base64Decode(dorm['image_url'].toString().split(',').last),
+                        fit: BoxFit.cover,
+                      )
+                    : Image.network(
+                        dorm['image_url'],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.bed, color: Color(0xFF7F8C8D), size: 30);
+                        },
+                      )
+                : const Icon(Icons.bed, color: Color(0xFF7F8C8D), size: 30),
           ),
           const SizedBox(width: 16),
           

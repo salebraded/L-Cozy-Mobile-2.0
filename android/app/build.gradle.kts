@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.l_cozymobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -258,13 +258,23 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: dorm['image_url'] != null && dorm['image_url'].toString().isNotEmpty
-                ? Image.network(
-                    dorm['image_url'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.image_outlined, size: 50, color: Colors.white);
-                    },
-                  )
+                ? dorm['image_url'].toString().startsWith('data:image') || dorm['image_url'].toString().contains(',')
+                    ? Image.memory(
+                        base64Decode(dorm['image_url'].toString().contains(',') 
+                            ? dorm['image_url'].toString().split(',').last 
+                            : dorm['image_url'].toString()),
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.image_outlined, size: 50, color: Colors.white);
+                        },
+                      )
+                    : Image.network(
+                        dorm['image_url'],
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(Icons.image_outlined, size: 50, color: Colors.white);
+                        },
+                      )
                 : const Icon(Icons.image_outlined, size: 50, color: Colors.white),
           ),
           Padding(
