@@ -7,6 +7,7 @@ import 'student_messages.dart';
 import 'student_bookings.dart';
 import 'student_payments.dart';
 import 'student_profiles.dart';
+import 'dorm_detail_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final String userName; // Received from Login
@@ -235,8 +236,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildDormCard(Map<String, dynamic> dorm) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DormDetailScreen(dorm: dorm),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -340,6 +350,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           )
         ],
+      ),
       ),
     );
   }
