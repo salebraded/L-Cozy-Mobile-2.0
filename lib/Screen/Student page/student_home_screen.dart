@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 // 🌟 ADDED IMPORTS FOR ALL YOUR NEW SCREENS 🌟
 import 'student_messages.dart';
@@ -17,30 +19,42 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   int _selectedIndex = 0;
+  List<Map<String, dynamic>> _dorms = [];
+  bool _isLoadingDorms = true;
 
-  final List<Map<String, dynamic>> _dorms = [
-    {
-      "name": "Sunrise Student Living",
-      "location": "0.5 miles from campus",
-      "price": "₱4,500 / month",
-      "rating": 4.8,
-      "availableBeds": 2,
-    },
-    {
-      "name": "The Hub Residences",
-      "location": "1.2 miles from campus",
-      "price": "₱3,500 / month",
-      "rating": 4.5,
-      "availableBeds": 5,
-    },
-    {
-      "name": "Cozy Corner Dorms",
-      "location": "0.8 miles from campus",
-      "price": "₱4,000 / month",
-      "rating": 4.9,
-      "availableBeds": 1,
+  @override
+  void initState() {
+    super.initState();
+    _fetchDorms();
+  }
+
+  // API: Fetch dormitories from database
+  Future<void> _fetchDorms() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://10.0.2.2:8080/lcozy_api/get_dorms.php'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            _dorms = List<Map<String, dynamic>>.from(data['dormitories']);
+            _isLoadingDorms = false;
+          });
+        } else {
+          throw Exception(data['message']);
+        }
+      } else {
+        throw Exception('Failed to load dormitories');
+      }
+    } catch (e) {
+      setState(() {
+        _isLoadingDorms = false;
+      });
+      print('Error loading dorms: $e');
     }
-  ];
+  }
 
   void _onItemTapped(int index) {
     setState(() {
@@ -177,14 +191,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 15),
 
-          ListView.builder(
-            shrinkWrap: true, 
-            physics: const NeverScrollableScrollPhysics(), 
-            itemCount: _dorms.length,
-            itemBuilder: (context, index) {
-              return _buildDormCard(_dorms[index]);
-            },
-          ),
+          // Show loading, empty state, or list of dormitories from database
+          _isLoadingDorms
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3498DB)),
+                  ),
+                )
+              : _dorms.isEmpty
+                  ? const Center(
+                      child: Text('No dormitories available'),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _dorms.length,
+                      itemBuilder: (context, index) {
+                        return _buildDormCard(_dorms[index]);
+                      },
+                    ),
         ],
       ),
     );
@@ -232,9 +257,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               color: Color(0xFFBDC3C7),
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            child: const Center(
-              child: Icon(Icons.image_outlined, size: 50, color: Colors.white),
-            ),
+            child: dorm['image_url'] != null && dorm['image_url'].toString().isNotEmpty
+                ? Image.network(
+                    dorm['image_url'],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Icon(Icons.image_outlined, size: 50, color: Colors.white);
+                    },
+                  )
+                : const Icon(Icons.image_outlined, size: 50, color: Colors.white),
           ),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -246,7 +277,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        dorm['name'],
+                        dorm['name'] ?? 'N/A',
                         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF34495E)),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -256,7 +287,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         const Icon(Icons.star, color: Colors.amber, size: 18),
                         const SizedBox(width: 4),
                         Text(
-                          dorm['rating'].toString(),
+                          '4.5',
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF34495E)),
                         ),
                       ],
@@ -269,7 +300,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF7F8C8D)),
                     const SizedBox(width: 4),
                     Text(
-                      dorm['location'],
+                      dorm['location'] ?? 'N/A',
                       style: const TextStyle(color: Color(0xFF7F8C8D), fontSize: 13),
                     ),
                   ],
@@ -279,7 +310,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      dorm['price'],
+                      '\$${dorm['price_per_month']} / month',
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF3498DB)),
                     ),
                     Container(
@@ -289,7 +320,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "${dorm['availableBeds']} Beds Left",
+                        "${dorm['available_slots']} Beds Left",
                         style: const TextStyle(color: Color(0xFF1ABC9C), fontWeight: FontWeight.bold, fontSize: 12),
                       ),
                     ),
